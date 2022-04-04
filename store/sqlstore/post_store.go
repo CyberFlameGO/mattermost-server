@@ -873,7 +873,7 @@ func (s *SqlPostStore) Delete(postID string, time int64, deleteByID string) erro
 		return errors.Wrap(err, "failed to update Posts")
 	}
 
-	err = s.cleanupThreadComments(transaction, postID, id.RootId, id.UserId)
+	err = s.cleanupThreadComments(transaction, postID, id.RootId, id.UserId, time)
 
 	if err != nil {
 		return errors.Wrapf(err, "failed to cleanup Thread with postid=%s", id.RootId)
@@ -939,7 +939,7 @@ func (s *SqlPostStore) permanentDeleteAllCommentByUser(userId string) error {
 	}
 
 	for _, ids := range results {
-		if err = s.cleanupThreadComments(transaction, ids.Id, ids.RootId, userId); err != nil {
+		if err = s.cleanupThreadComments(transaction, ids.Id, ids.RootId, userId, 0); err != nil {
 			return err
 		}
 	}
@@ -2639,6 +2639,10 @@ func (s *SqlPostStore) cleanupThreadComments(transaction *sqlxTxWrapper, postId,
 			}
 		}
 
+		if deleteAtTime > 0 {
+			updateQuery = updateQuery.Set("DeleteAt", deleteAtTime)
+		}
+
 		updateQueryString, updateArgs, err := updateQuery.
 			Set("ReplyCount", sq.Expr("ReplyCount - 1")).
 			Where(sq.And{
@@ -2681,6 +2685,7 @@ func (s *SqlPostStore) updateThreadsFromPosts(transaction *sqlxTxWrapper, posts 
 			"Threads.ReplyCount",
 			"Threads.LastReplyAt",
 			"Threads.Participants",
+			"COALESCE(Threads.DeleteAt, 0) AS DeleteAt",
 		).
 		From("Threads").
 		Where(sq.Eq{"Threads.PostId": rootIds}).
