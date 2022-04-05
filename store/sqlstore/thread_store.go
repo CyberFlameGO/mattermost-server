@@ -140,9 +140,7 @@ func (s *SqlThreadStore) GetTotalThreads(userId, teamId string, opts model.GetUs
 	}
 
 	if !opts.Deleted {
-		query = query.
-			LeftJoin("Posts ON Posts.Id = ThreadMemberships.PostId").
-			Where(sq.Eq{"COALESCE(Posts.DeleteAt, 0)": 0})
+		query = query.Where(sq.Eq{"COALESCE(Threads.DeleteAt, 0)": 0})
 	}
 
 	if opts.Unread {
@@ -187,9 +185,7 @@ func (s *SqlThreadStore) GetTotalUnreadMentions(userId, teamId string, opts mode
 	}
 
 	if !opts.Deleted {
-		query = query.
-			LeftJoin("Posts ON Posts.Id = ThreadMemberships.PostId").
-			Where(sq.Eq{"COALESCE(Posts.DeleteAt, 0)": 0})
+		query = query.Where(sq.Eq{"COALESCE(Threads.DeleteAt, 0)": 0})
 	}
 
 	sql, args, err := query.ToSql()
@@ -357,7 +353,7 @@ func (s *SqlThreadStore) GetTeamsUnreadForUser(userID string, teamIDs []string) 
 		sq.Eq{"ThreadMemberships.UserId": userID},
 		sq.Eq{"ThreadMemberships.Following": true},
 		sq.Eq{"Channels.TeamId": teamIDs},
-		sq.Eq{"COALESCE(Posts.DeleteAt, 0)": 0},
+		sq.Eq{"COALESCE(Threads.DeleteAt, 0)": 0},
 	}
 
 	var wg sync.WaitGroup
@@ -383,7 +379,6 @@ func (s *SqlThreadStore) GetTeamsUnreadForUser(userID string, teamIDs []string) 
 			From("Threads").
 			LeftJoin("ThreadMemberships ON Threads.PostId = ThreadMemberships.PostId").
 			LeftJoin("Channels ON Threads.ChannelId = Channels.Id").
-			LeftJoin("Posts ON Posts.Id = Threads.PostId").
 			Where(fetchConditions).
 			Where("Threads.LastReplyAt > ThreadMemberships.LastViewed").
 			GroupBy("Channels.TeamId").
@@ -406,7 +401,6 @@ func (s *SqlThreadStore) GetTeamsUnreadForUser(userID string, teamIDs []string) 
 			Select("COALESCE(SUM(ThreadMemberships.UnreadMentions),0) AS Count, TeamId").
 			From("ThreadMemberships").
 			LeftJoin("Threads ON Threads.PostId = ThreadMemberships.PostId").
-			LeftJoin("Posts ON Posts.Id = ThreadMemberships.PostId").
 			LeftJoin("Channels ON Threads.ChannelId = Channels.Id").
 			Where(fetchConditions).
 			GroupBy("Channels.TeamId").
