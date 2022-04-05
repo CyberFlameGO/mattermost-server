@@ -241,7 +241,6 @@ func (s *SqlThreadStore) GetThreadsForUser(userId, teamId string, opts model.Get
 		).
 		From("Threads").
 		Column(sq.Alias(sq.Expr(unreadRepliesSql, unreadRepliesArgs...), "UnreadReplies")).
-		Join("Posts ON Posts.Id = Threads.PostId").
 		Join("ThreadMemberships ON ThreadMemberships.PostId = Threads.PostId")
 
 	query = query.
@@ -252,6 +251,7 @@ func (s *SqlThreadStore) GetThreadsForUser(userId, teamId string, opts model.Get
 	// a team at all.
 	if teamId != "" {
 		query = query.
+			Join("Posts ON Posts.Id = Threads.PostId").
 			Join("Channels ON Posts.ChannelId = Channels.Id").
 			Where(sq.Or{
 				sq.Eq{"Channels.TeamId": teamId},
@@ -260,7 +260,7 @@ func (s *SqlThreadStore) GetThreadsForUser(userId, teamId string, opts model.Get
 	}
 
 	if !opts.Deleted {
-		query = query.Where(sq.Eq{"Posts.DeleteAt": 0})
+		query = query.Where(sq.Eq{"Threads.DeleteAt": 0})
 	}
 
 	if opts.Since > 0 {
